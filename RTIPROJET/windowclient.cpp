@@ -1,16 +1,28 @@
 #include "windowclient.h"
 #include "ui_windowclient.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include "TCP.h"
+#include "OVESP.h"
 #include <QMessageBox>
 #include <string>
 using namespace std;
 
 extern WindowClient *w;
+int sClient;
+char * adresseIP = "192.168.161.161";
+int port = 50000;
 
 #define REPERTOIRE_IMAGES "images/"
+
+void Echange(char* requete, char* reponse);
 
 WindowClient::WindowClient(QWidget *parent) : QMainWindow(parent), ui(new Ui::WindowClient)
 {
     ui->setupUi(this);
+
 
     // Configuration de la table du panier (ne pas modifer)
     ui->tableWidgetPanier->setColumnCount(3);
@@ -28,10 +40,21 @@ WindowClient::WindowClient(QWidget *parent) : QMainWindow(parent), ui(new Ui::Wi
 
     ui->pushButtonPayer->setText("Confirmer achat");
     setPublicite("!!! Bienvenue sur le Maraicher en ligne !!!");
+    
 
-    // Exemples à supprimer
-    setArticle("pommes",5.53,18,"pommes.jpg");
-    ajouteArticleTablePanier("cerises",8.96,2);
+
+    printf("Ca marche(%s)",adresseIP);
+
+    if ((sClient = ClientSocket(adresseIP,port) == -1))
+    {
+      perror("Erreur de ClientSocket");
+      exit(1);
+    }
+    printf("Ca marche(%d)",sClient);
+    
+
+
+
 }
 
 WindowClient::~WindowClient()
@@ -274,6 +297,39 @@ void WindowClient::closeEvent(QCloseEvent *event)
 void WindowClient::on_pushButtonLogin_clicked()
 {
 
+  char requete[200],reponse[200];
+  int nbEcrits, nbLus;
+
+
+
+  // ***** Construction de la requete *********************
+
+  sprintf(requete,"LOGIN#%s#%s",getNom(),getMotDePasse());
+
+  printf("TEST 1\n");
+  // ***** Envoi requete + réception réponse **************
+
+  Echange(requete,reponse);
+
+
+  // ***** Parsing de la réponse **************************
+
+  printf("TEST 6\n");
+
+  char *ptr = strtok(reponse,"#"); // entête = LOGIN (normalement...)
+
+  ptr = strtok(NULL,"#"); // statut = ok ou ko
+
+  if (strcmp(ptr,"ok") == 0) printf("Login OK.\n");
+  else
+  {
+    ptr = strtok(NULL,"#"); // raison du ko
+    printf("Erreur de login: %s\n",ptr);
+ 
+  }
+
+
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -316,4 +372,36 @@ void WindowClient::on_pushButtonViderPanier_clicked()
 void WindowClient::on_pushButtonPayer_clicked()
 {
 
+}
+
+
+
+void Echange(char* requete, char* reponse)
+{
+  int nbEcrits, nbLus;
+  // ***** Envoi de la requete ****************************
+  printf("TEST 2 (%d)\n",sClient);
+  if ((nbEcrits = Send(sClient,requete,strlen(requete))) == -1)
+  {
+    perror("Erreur de Send");
+    close(sClient);
+    exit(1);
+  }
+  printf("TEST 3 %d \n",nbEcrits );
+
+  // ***** Attente de la reponse **************************
+  if ((nbLus = Receive(sClient,reponse)) < 0)
+  {
+    perror("Erreur de Receive");
+    close(sClient);
+    exit(1);
+  }
+  printf("TEST 4\n");
+  if (nbLus == 0)
+  {
+    printf("Serveur arrete, pas de reponse reçue...\n");
+    close(sClient);
+    exit(1);
+  }
+  reponse[nbLus] = 0;
 }

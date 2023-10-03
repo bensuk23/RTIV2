@@ -11,6 +11,7 @@ int age;
 float poids;
 } PERSONNE;
 
+int sClient;
 int main(int argc,char* argv[])
 {
 	if (argc != 3)
@@ -20,7 +21,7 @@ int main(int argc,char* argv[])
 		exit(1);
 	}
 
-	int sClient;
+
 	if ((sClient = ClientSocket(argv[1],atoi(argv[2]))) == -1)
 	{
 		perror("Erreur de ClientSocket");
@@ -29,7 +30,7 @@ int main(int argc,char* argv[])
 
 	// ***** Envoi de texte pur ***************************************
 
-	char texte[80];
+	char texte[100];
 	sprintf(texte,"Bonjour, comment vas-tu ?");
 	int nbEcrits;
 

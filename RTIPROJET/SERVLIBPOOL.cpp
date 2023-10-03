@@ -116,16 +116,17 @@ void* FctThreadClient(void* p)
 		pthread_mutex_lock(&mutexSocketsAcceptees);
 		while (indiceEcriture == indiceLecture)
 		pthread_cond_wait(&condSocketsAcceptees,&mutexSocketsAcceptees);
+
 		sService = socketsAcceptees[indiceLecture];
 		socketsAcceptees[indiceLecture] = -1;
 		indiceLecture++;
+
 		if (indiceLecture == TAILLE_FILE_ATTENTE) indiceLecture = 0;
 		pthread_mutex_unlock(&mutexSocketsAcceptees);
 
 		// Traitement de la connexion (consommation de la tâche)
 
-		printf("\t[THREAD %p] Je m'occupe de la socket %d\n",
-		pthread_self(),sService);
+		printf("\t[THREAD %p] Je m'occupe de la socket %d\n",pthread_self(),sService);
 		TraitementConnexion(sService);
 	}
 }
@@ -134,6 +135,7 @@ void HandlerSIGINT(int s)
 {
 	printf("\nArret du serveur.\n");
 	close(sEcoute);
+	//close(sService);
 	pthread_mutex_lock(&mutexSocketsAcceptees);
 
 	for (int i=0 ; i<TAILLE_FILE_ATTENTE ; i++)
@@ -153,14 +155,14 @@ void TraitementConnexion(int sService)
 
 	while (onContinue)
 	{
-		printf("\t[THREAD %p] Attente requete...\n",pthread_self());
+		printf("\t[THREAD %p] (%d) Attente requete...\n",pthread_self(),sService);
 
 		// ***** Reception Requete ******************
 		if ((nbLus = Receive(sService,requete)) < 0)
 		{
-		perror("Erreur de Receive");
-		close(sService);
-		HandlerSIGINT(0);
+			perror("Erreur de Receive");
+			close(sService);
+			HandlerSIGINT(0);
 		}
 
 		// ***** Fin de connexion ? *****************
@@ -171,6 +173,7 @@ void TraitementConnexion(int sService)
 			close(sService);
 			return;
 		}
+
 		requete[nbLus] = 0;
 		printf("\t[THREAD %p] Requete recue = %s\n",pthread_self(),requete);
 

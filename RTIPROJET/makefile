@@ -1,6 +1,6 @@
 #.SILENT:
 
-PROGRAMS= Client Serveur CreationBD
+PROGRAMS= Client Serveur CreationBD ClientTEST ClientTEST2
 
 ALL:$(PROGRAMS)
 
@@ -29,3 +29,9 @@ Client:	mainclient.o windowclient.o moc_windowclient.o TCP.o OVESP.o
 
 CreationBD:	CreationBD.cpp
 	g++ -o CreationBD CreationBD.cpp -I/usr/include/mysql -m64 -L/usr/lib64/mysql -lmysqlclient -lpthread -lz -lm -lrt -lssl -lcrypto -ldl
+
+ClientTEST:		CLITEST.cpp TCP.o OVESP.o
+	g++  CLITEST.cpp TCP.o OVESP.o -lpthread -o ClientTEST
+
+ClientTEST2:		CLILIBPOOL.cpp TCP.o OVESP.o
+	g++  CLILIBPOOL.cpp TCP.o OVESP.o -lpthread -o ClientTEST2

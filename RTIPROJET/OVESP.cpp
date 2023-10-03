@@ -21,6 +21,7 @@ bool OVESP(char* requete, char* reponse,int socket)
 {
 	// ***** Récupération nom de la requete *****************
 	char *ptr = strtok(requete,"#");
+	printf("LOGIN#ko#Client déjà loggé !");
 
 	// ***** LOGIN ******************************************
 
