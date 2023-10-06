@@ -1,9 +1,12 @@
-#include "OVESP.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <mysql.h>
+#include <mysql/mysql.h>
 #include <pthread.h>
+
+#include "OVESP.h"
 
 //***** Etat du protocole : liste des clients loggés ****************
 
@@ -13,42 +16,80 @@ int nbClients = 0;
 int estPresent(int socket);
 void ajoute(int socket);
 void retire(int socket);
+MYSQL* connexion;
+char requete[256];
+
 
 pthread_mutex_t mutexClients = PTHREAD_MUTEX_INITIALIZER;
+
+pthread_mutex_t mutexBD = PTHREAD_MUTEX_INITIALIZER;
 
 //***** Parsing de la requete et creation de la reponse *************
 bool OVESP(char* requete, char* reponse,int socket)
 {
+
+	pthread_mutex_lock(&mutexBD);
+
+
+	connexion = mysql_init(NULL);
+	if (mysql_real_connect(connexion,"localhost","Student","PassStudent1_","PourStudent",0,0,0) == NULL)
+	{
+	fprintf(stderr,"(SERVEUR) Erreur de connexion à la base de données...\n");
+	exit(1);  
+	}
 	// ***** Récupération nom de la requete *****************
 	char *ptr = strtok(requete,"#");
-	printf("LOGIN#ko#Client déjà loggé !");
+
 
 	// ***** LOGIN ******************************************
 
 	if (strcmp(ptr,"LOGIN") == 0)
 	{
-		char user[50], password[50];
+		char user[50], password[50] ,NCouPNC[50];
 		strcpy(user,strtok(NULL,"#"));
 		strcpy(password,strtok(NULL,"#"));
-		printf("\t[THREAD %p] LOGIN de %s\n",pthread_self(),user);
-		if (estPresent(socket) >= 0) // client déjà loggé
+		strcpy(NCouPNC,strtok(NULL,"#"));
+		if (strcmp(NCouPNC,"PNC")==0)
 		{
-			sprintf(reponse,"LOGIN#ko#Client déjà loggé !");
-			return false;
-		}
-		else
-		{
-			if (OVESP_Login(user,password))
+			printf("\t[THREAD %p] LOGIN de %s\n",pthread_self(),user);
+
+			if (estPresent(socket) >= 0) // client déjà loggé
 			{
-				sprintf(reponse,"LOGIN#ok");
-				ajoute(socket);
+				sprintf(reponse,"LOGIN#ko#Client déjà loggé !");
+				pthread_mutex_unlock(&mutexBD);
+				return false;
 			}
 			else
 			{
-				sprintf(reponse,"LOGIN#ko#Mauvais identifiants !");
-				return false;
+				if (OVESP_LoginPNC(user,password))
+				{
+					sprintf(reponse,"LOGIN#ok");
+					ajoute(socket);
+				}
+				else
+				{
+					sprintf(reponse,"LOGIN#ko#Mauvais identifiants !");
+					pthread_mutex_unlock(&mutexBD);
+					return false;
+				}
 			}
 		}
+		else if (strcmp(NCouPNC,"NC")==0)
+			{
+				
+				if (OVESP_LoginNC(user,password))
+					{
+						sprintf(reponse,"LOGIN#ok");
+						ajoute(socket);
+					}
+					else
+					{
+						sprintf(reponse,"LOGIN#ko#le client existe deja !");
+						pthread_mutex_unlock(&mutexBD);
+						return false;
+					}
+			}
+		pthread_mutex_unlock(&mutexBD);
 	}
 
 	// ***** LOGOUT *****************************************
@@ -58,57 +99,107 @@ bool OVESP(char* requete, char* reponse,int socket)
 		printf("\t[THREAD %p] LOGOUT\n",pthread_self());
 		retire(socket);
 		sprintf(reponse,"LOGOUT#ok");
+		pthread_mutex_unlock(&mutexBD);
 		return false;
 	}
 
-	// ***** OPER *******************************************
-
-	if (strcmp(ptr,"OPER") == 0)
-	{
-		char op;
-		int a,b;
-		ptr = strtok(NULL,"#");
-		op = ptr[0];
-		a = atoi(strtok(NULL,"#"));
-		b = atoi(strtok(NULL,"#"));
-
-		printf("\t[THREAD %p] OPERATION %d %c %d\n",pthread_self(),a,op,b);
-
-		if (estPresent(socket) == -1) sprintf(reponse,"OPER#ko#Client non loggé!");
-		else
-		{
-			try
-			{
-			int resultat = OVESP_Operation(op,a,b);
-			sprintf(reponse,"OPER#ok#%d",resultat);
-			}
-			catch(int) { sprintf(reponse,"OPER#ko#Division par zéro !"); }
-		}
-	}
 
 	return true;
 }
 
 //***** Traitement des requetes *************************************
 
-bool OVESP_Login(const char* user,const char* password)
+bool OVESP_LoginPNC(const char* user,const char* password)
 {
-	if (strcmp(user,"wagner")==0 && strcmp(password,"abc123")==0) return true;
-	if (strcmp(user,"charlet")==0 && strcmp(password,"xyz456")==0) return true;
+
+	int test =0;
+	sprintf(requete,"select * from clients;");
+
+	
+	if (mysql_query(connexion,requete) != 0)
+	{
+		fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+		exit(1);
+	}
+
+	printf("Requete SELECT réussie.\n");
+
+	// Affichage du Result Set
+	MYSQL_RES *ResultSetA;
+
+	if ((ResultSetA = mysql_store_result(connexion)) == NULL)
+	{
+		fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
+		exit(1);
+	}
+
+	MYSQL_ROW ligneA;
+
+
+
+	while ((ligneA = mysql_fetch_row(ResultSetA)) != NULL)
+	{
+		if (strcmp(user,ligneA[1])==0 && strcmp(password,ligneA[2])==0) 
+		{
+			test = 1;
+			break;
+		}
+	}
+	
+	if (test == 1) return true;
 	return false;
+
 }
 
-int OVESP_Operation(char op,int a,int b)
+bool OVESP_LoginNC(const char* user,const char* password)
 {
-	if (op == '+') return a+b;
-	if (op == '-') return a-b;
-	if (op == '*') return a*b;
-	if (op == '/')
+	
+	int test = 0;
+
+	sprintf(requete,"select * from clients;");
+
+	
+	if (mysql_query(connexion,requete) != 0)
 	{
-		if (b == 0) throw 1;
-		return a/b;
+		fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+		exit(1);
 	}
-	return 0;
+
+	printf("Requete SELECT réussie.\n");
+
+	// Affichage du Result Set
+	MYSQL_RES *ResultSetA;
+
+	if ((ResultSetA = mysql_store_result(connexion)) == NULL)
+	{
+		fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
+		exit(1);
+	}
+
+	MYSQL_ROW ligneA;
+
+
+
+	while ((ligneA = mysql_fetch_row(ResultSetA)) != NULL)
+	{
+		if (strcmp(user,ligneA[1])==0 && strcmp(password,ligneA[2])==0) 
+		{
+			test = 1;
+			break;
+		}
+	}
+	
+	if (test == 1) return false;
+
+
+	sprintf(requete,"insert into clients values (NULL,'%s','%s');",user,password);
+	if(mysql_query(connexion,requete) != 0)
+	{
+		fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+		return false;
+	}
+
+	return true;
 }
 
 
@@ -116,6 +207,8 @@ int OVESP_Operation(char op,int a,int b)
 
 int estPresent(int socket)
 {
+	
+	
 	int indice = -1;
 	pthread_mutex_lock(&mutexClients);
 	for(int i=0 ; i<nbClients ; i++)

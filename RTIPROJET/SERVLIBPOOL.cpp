@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+
 #include <signal.h>
 #include <pthread.h>
 #include "TCP.h"
@@ -17,6 +18,7 @@ int sEcoute;
 #define TAILLE_FILE_ATTENTE 20
 int socketsAcceptees[TAILLE_FILE_ATTENTE];
 int indiceEcriture=0, indiceLecture=0;
+
 pthread_mutex_t mutexSocketsAcceptees;
 pthread_cond_t condSocketsAcceptees;
 
@@ -60,6 +62,9 @@ int main(int argc,char* argv[])
 		perror("Erreur de ServeurSocket");
 		exit(1);
 	}
+
+	// Connexion à la base de donnée
+
 
 	// Creation du pool de threads
 
@@ -153,7 +158,8 @@ void TraitementConnexion(int sService)
 	int nbLus, nbEcrits;
 	bool onContinue = true;
 
-	while (onContinue)
+
+	while (1)
 	{
 		printf("\t[THREAD %p] (%d) Attente requete...\n",pthread_self(),sService);
 
@@ -191,9 +197,13 @@ void TraitementConnexion(int sService)
 			HandlerSIGINT(0);
 		}
 
-		printf("\t[THREAD %p] Reponse envoyee = %s\n",pthread_self(),reponse);
+		printf("\t[THREAD %p] Reponse envoyee = %s %d\n",pthread_self(),reponse,nbEcrits);
 
 		if (!onContinue)
-		printf("\t[THREAD %p] Fin de connexion de la socket%d\n",pthread_self(),sService);
+		{
+			printf("\t[THREAD %p] probleme de requete %d\n",pthread_self(),sService);
+			onContinue = true;
+		}
+
 	}	
 }

@@ -115,7 +115,7 @@ int ClientSocket(char* ipServeur,int portServeur)
         perror("Erreur de socket()"); 
         exit(1);
     }
-    printf("(%dtestttttttttttttt)",sService);
+
     struct addrinfo hints; 
     struct addrinfo *results;
     sprintf(portC, "%d", portServeur);
@@ -133,7 +133,7 @@ int ClientSocket(char* ipServeur,int portServeur)
 		perror("Erreur de connect()");
 		exit(1);
 	}
-	printf("(%dtestttttttttttttt2)",sService);
+
 	return sService;
 }
 int Receive(int sSocket,char* data)
@@ -147,7 +147,7 @@ int Receive(int sSocket,char* data)
 			return -1;
 		if (nbLus == 0) return i; // connexion fermee par client
 		
-		if (lu1 == '#')
+		if (lu1 == '+')
 		{
 
 			if ((nbLus = read(sSocket,&lu2,1)) == -1)
@@ -182,10 +182,10 @@ int Send(int sSocket,char* data,int taille)
 
 	memcpy(trame,data,taille);
 
-	trame[taille] = '#';
+	trame[taille] = '+';
 
 	trame[taille+1] = ')';
-	printf("TEST bis1\n");
+
 
 	// Ecriture sur la socket
 	return write(sSocket,trame,taille+2)-2;
