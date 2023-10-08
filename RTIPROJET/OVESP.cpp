@@ -18,6 +18,8 @@ void ajoute(int socket);
 void retire(int socket);
 MYSQL* connexion;
 char requete[256];
+ARTICLE articles[10];
+int nbArticles = 0;
 
 
 pthread_mutex_t mutexClients = PTHREAD_MUTEX_INITIALIZER;
@@ -29,6 +31,7 @@ bool OVESP(char* requete, char* reponse,int socket)
 {
 
 	pthread_mutex_lock(&mutexBD);
+	char id[5],quantite[5];
 
 
 	connexion = mysql_init(NULL);
@@ -103,6 +106,66 @@ bool OVESP(char* requete, char* reponse,int socket)
 		return false;
 	}
 
+
+	// ***** CONSULT *****************************************
+
+	if (strcmp(ptr,"CONSULT") == 0)
+	{
+
+		printf("\t[THREAD %p] CONSULT\n",pthread_self());
+
+		strcpy(id,strtok(NULL,"#"));
+		ARTICLE articleEnCoursC;
+		articleEnCoursC = OVESP_CONSULT(id);
+
+
+		if(articleEnCoursC.id == 0)
+		{
+
+			sprintf(reponse,"CONSULT#-1");
+			return false;
+		}
+		else
+		{
+
+			sprintf(reponse,"CONSULT#%d#%s#%d#%f#%s",articleEnCoursC.id,articleEnCoursC.intitule,articleEnCoursC.stock,articleEnCoursC.prix,articleEnCoursC.image);
+		}
+
+		pthread_mutex_unlock(&mutexBD);
+
+
+	}
+
+	if (strcmp(ptr,"ACHAT") == 0)
+	{
+
+		printf("\t[THREAD %p] ACHAT\n",pthread_self());
+
+		strcpy(id,strtok(NULL,"#"));
+		ARTICLE articleEnCoursC;
+
+
+		strcpy(quantite,strtok(NULL,"#"));
+
+
+		articleEnCoursC = OVESP_ACHAT(id,quantite);
+
+
+		if(articleEnCoursC.id == 0)
+		{
+
+			sprintf(reponse,"ACHAT#-1");
+			return false;
+		}
+		else
+		{
+				sprintf(reponse,"ACHAT#%d#%d#%f",articleEnCoursC.id,articleEnCoursC.stock,articleEnCoursC.prix);
+		}
+
+		pthread_mutex_unlock(&mutexBD);
+
+
+	}
 
 	return true;
 }
@@ -202,8 +265,119 @@ bool OVESP_LoginNC(const char* user,const char* password)
 	return true;
 }
 
+ARTICLE OVESP_CONSULT(const char* id)
+{
+	// Acces BD
+	ARTICLE articleEnCours;
+                      sprintf(requete,"select * from articles where id=%d;",atoi(id));
 
-//***** Gestion de l'état du protocole ******************************
+                      if (mysql_query(connexion,requete) != 0)
+                      {
+                      fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+                      exit(1);
+                      }
+
+                      printf("Requete SELECT réussie.\n");
+
+                      // Affichage du Result Set
+                      MYSQL_RES *ResultSet;
+
+                      if ((ResultSet = mysql_store_result(connexion)) == NULL)
+                      {
+                      fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
+                      exit(1);
+                      }
+
+                      MYSQL_ROW ligne;
+
+                      
+
+                      while ((ligne = mysql_fetch_row(ResultSet)) != NULL)
+                      {
+
+                      articleEnCours.id = atoi(ligne[0]);
+                      strcpy(articleEnCours.intitule , ligne[1]);
+                      articleEnCours.prix = atof(ligne[2]);
+                      articleEnCours.stock = atoi(ligne[3]);
+                      strcpy(articleEnCours.image , ligne[4]);
+                      
+                      }
+                      
+                      return articleEnCours;
+
+
+}
+
+ARTICLE OVESP_ACHAT(const char* id, const char* quantite)
+{
+	// Acces BD
+	ARTICLE articleEnCours;
+              
+          sprintf(requete,"select * from articles where id=%d;",id);
+
+          if (mysql_query(connexion,requete) != 0)
+          {
+	          fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+	          exit(1);
+          }
+
+          printf("Requete SELECT réussie.\n");
+
+          // Affichage du Result Set
+          MYSQL_RES *ResultSetA;
+
+          if ((ResultSetA = mysql_store_result(connexion)) == NULL)
+          {
+          fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
+          exit(1);
+          }
+
+          MYSQL_ROW ligneA;
+
+          
+
+          while ((ligneA = mysql_fetch_row(ResultSetA)) != NULL)
+          {
+
+
+          articleEnCours.id = atoi(ligneA[0]);
+          strcpy(articleEnCours.intitule , ligneA[1]);
+
+
+          if(atoi(ligneA[3]) < atoi(quantite))
+          {
+
+            articleEnCours.stock = 0;
+ 
+
+          }
+          else
+          {
+            
+            articleEnCours.stock = atoi(quantite);
+            sprintf(requete,"update articles set stock = stock - %s where id=%d;",quantite,articleEnCours.id);
+
+            if (mysql_query(connexion,requete) != 0)
+            {
+              fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+
+              exit(1);
+            }
+            printf("Requete UPDATE réussie.\n");
+          }
+      
+          articleEnCours.prix = atof(ligneA[2]);
+
+          
+
+          }
+
+
+          return articleEnCours;
+
+
+}
+
 
 int estPresent(int socket)
 {

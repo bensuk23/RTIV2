@@ -12,11 +12,15 @@ using namespace std;
 
 extern WindowClient *w;
 int sClient;
+ARTICLE articleEnCours;
 char * adresseIP = "192.168.161.161";
 int port = 50000;
+float totalCaddie = 0.0;
+
+
 
 #define REPERTOIRE_IMAGES "images/"
-
+void CONSULTLOGIN();
 void Echange(char* requete, char* reponse);
 
 WindowClient::WindowClient(QWidget *parent) : QMainWindow(parent), ui(new Ui::WindowClient)
@@ -324,13 +328,14 @@ void WindowClient::on_pushButtonLogin_clicked()
   char *ptr = strtok(reponse,"#"); // entête = LOGIN (normalement...)
 
   ptr = strtok(NULL,"#"); // statut = ok ou ko
-  QMessageBox::information(this,";)","bug.\n");
+
 
   if (strcmp(ptr,"ok") == 0) 
   {
     QMessageBox::information(this,";)","Login OK.\n");
     printf("clienttest1 ");
     loginOK();
+    CONSULTLOGIN();
   }
 
   if (strcmp(ptr,"ko") == 0) 
@@ -366,18 +371,181 @@ void WindowClient::on_pushButtonLogout_clicked()
 void WindowClient::on_pushButtonSuivant_clicked()
 {
 
+
+  char requete[200],reponse[200];
+
+  // ***** Construction de la requete *********************
+  if((articleEnCours.id + 1) != 22)
+  {
+    sprintf(requete,"CONSULT#%d",articleEnCours.id+1);
+    // ***** Envoi requete + réception réponse **************
+    Echange(requete,reponse);
+
+
+      // ***** Parsing de la réponse **************************
+
+
+    char *ptr = strtok(reponse,"#"); // entête = CONSULT (normalement...)
+
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+    if (strcmp(ptr,"-1") == 0) 
+    {
+      QMessageBox::information(this,";)","Erreur article non trouvé .\n");
+
+    }  
+    else
+    {
+      articleEnCours.id =atoi(ptr);
+
+
+      strcpy(articleEnCours.intitule,strtok(NULL,"#"));
+
+
+      ptr = strtok(NULL,"#"); // prix
+
+      articleEnCours.prix= atof(ptr);
+
+      ptr = strtok(NULL,"#"); // stock
+
+      articleEnCours.stock = atoi(ptr);
+
+
+
+      strcpy(articleEnCours.image,strtok(NULL,"#"));
+     
+
+      w->setArticle(articleEnCours.intitule,articleEnCours.prix,articleEnCours.stock,articleEnCours.image);
+    }
+  }
+  else
+  {
+    QMessageBox::information(this,";)","Vous arriver à la fin ");
+
+  }
+
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void WindowClient::on_pushButtonPrecedent_clicked()
 {
+  char requete[200],reponse[200];
 
+  // ***** Construction de la requete *********************
+  if((articleEnCours.id -1) != 0)
+  {
+    sprintf(requete,"CONSULT#%d",articleEnCours.id-1);
+    // ***** Envoi requete + réception réponse **************
+    Echange(requete,reponse);
+
+
+      // ***** Parsing de la réponse **************************
+
+
+    char *ptr = strtok(reponse,"#"); // entête = CONSULT (normalement...)
+
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+    if (strcmp(ptr,"-1") == 0) 
+    {
+      QMessageBox::information(this,";)","Erreur article non trouvé .\n");
+    }  
+    else
+    {
+      articleEnCours.id =atoi(ptr);
+
+
+      strcpy(articleEnCours.intitule,strtok(NULL,"#"));
+
+
+      ptr = strtok(NULL,"#"); // prix
+
+      articleEnCours.prix= atof(ptr);
+
+      ptr = strtok(NULL,"#"); // stock
+
+      articleEnCours.stock = atoi(ptr);
+
+
+      strcpy(articleEnCours.image,strtok(NULL,"#"));
+     
+
+
+      w->setArticle(articleEnCours.intitule,articleEnCours.prix,articleEnCours.stock,articleEnCours.image);
+    }
+  }
+  else
+  {
+    QMessageBox::information(this,";)","Vous etes revenu au debut ");
+
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void WindowClient::on_pushButtonAcheter_clicked()
 {
+  char requete[200],reponse[200];
 
+  // ***** Construction de la requete *********************
+
+    sprintf(requete,"ACHAT#%d#%d",articleEnCours.id,getQuantite());
+    // ***** Envoi requete + réception réponse **************
+    Echange(requete,reponse);
+
+
+      // ***** Parsing de la réponse **************************
+
+
+    char *ptr = strtok(reponse,"#"); // entête = ACHAT (normalement...)
+
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+    if (strcmp(ptr,"-1") == 0) 
+    {
+      QMessageBox::information(this,";)","Erreur article non trouvé .\n");
+
+    }  
+    else
+    {
+      articleEnCours.id =atoi(ptr); 
+
+
+
+      ptr = strtok(NULL,"#"); // statut = Quantite ou 0
+
+      articleEnCours.stock = atoi(ptr);
+
+
+      ptr = strtok(NULL,"#"); // prix
+
+      articleEnCours.prix= atof(ptr);
+
+      
+
+
+      if(articleEnCours.stock > 0)
+      {
+        w->videTablePanier();
+        totalCaddie = 0;
+        w->ajouteArticleTablePanier(articleEnCours.intitule,articleEnCours.stock,articleEnCours.prix);
+
+        totalCaddie += articleEnCours.stock * articleEnCours.prix;
+
+        w->setTotal(totalCaddie);
+
+        QMessageBox::information(this,";)","Bien ajouter au panier .\n");
+      }
+      else
+      {
+        QMessageBox::information(this,";)","Pas assez de stock  .\n");
+      }
+
+
+      
+
+    }
+ 
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -429,3 +597,59 @@ void Echange(char* requete, char* reponse)
   }
   reponse[nbLus] = 0;
 }
+
+void CONSULTLOGIN()
+{
+  char requete[200],reponse[200];
+
+  // ***** Construction de la requete *********************
+
+  sprintf(requete,"CONSULT#1");
+  // ***** Envoi requete + réception réponse **************
+
+  Echange(requete,reponse);
+  
+
+    // ***** Parsing de la réponse **************************
+
+
+  char *ptr = strtok(reponse,"#"); // entête = CONSULT (normalement...)
+  printf("TEST 1Adresse IP distante du client : \n");
+
+  ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+
+    articleEnCours.id =atoi(ptr);
+    printf("TEST 2Adresse IP distante du client : \n");
+
+
+    strcpy(articleEnCours.intitule,strtok(NULL,"#"));
+
+    printf("TEST 3Adresse IP distante du client : \n");
+    
+
+    ptr = strtok(NULL,"#"); // stock
+
+    articleEnCours.stock = atoi(ptr);
+    printf("TEST 4Adresse IP distante du client : \n");
+
+    ptr = strtok(NULL,"#"); // prix
+
+    articleEnCours.prix= 10.0;
+    printf("TEST 5Adresse IP distante du client : \n");
+
+
+
+    printf("TEST 6Adresse IP distante du client : \n");
+    strcpy(articleEnCours.image,strtok(NULL,"#"));
+    printf("TEST 7Adresse IP distante du client : \n");
+    printf("\n\n\n\n\n\n1:%d 2:%s 3:%f 4:%d 5:%s\n\n\n\n\n\n",articleEnCours.id,articleEnCours.intitule,articleEnCours.prix,articleEnCours.stock,articleEnCours.image);
+   
+
+    w->setArticle(articleEnCours.intitule,articleEnCours.prix,articleEnCours.stock,articleEnCours.image);
+  
+}
+ 
+
+  
+
