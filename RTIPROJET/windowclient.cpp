@@ -20,8 +20,9 @@ float totalCaddie = 0.0;
 
 
 #define REPERTOIRE_IMAGES "images/"
-void CONSULTLOGIN();
+void CONSULTRAPIDE();
 void Echange(char* requete, char* reponse);
+void remplacerPointParVirgule(char *chaine);
 
 WindowClient::WindowClient(QWidget *parent) : QMainWindow(parent), ui(new Ui::WindowClient)
 {
@@ -335,7 +336,7 @@ void WindowClient::on_pushButtonLogin_clicked()
     QMessageBox::information(this,";)","Login OK.\n");
     printf("clienttest1 ");
     loginOK();
-    CONSULTLOGIN();
+    CONSULTRAPIDE();
   }
 
   if (strcmp(ptr,"ko") == 0) 
@@ -401,14 +402,14 @@ void WindowClient::on_pushButtonSuivant_clicked()
 
       strcpy(articleEnCours.intitule,strtok(NULL,"#"));
 
+      ptr = strtok(NULL,"#"); // stock
+
+      articleEnCours.stock = atoi(ptr);
 
       ptr = strtok(NULL,"#"); // prix
 
       articleEnCours.prix= atof(ptr);
 
-      ptr = strtok(NULL,"#"); // stock
-
-      articleEnCours.stock = atoi(ptr);
 
 
 
@@ -459,13 +460,13 @@ void WindowClient::on_pushButtonPrecedent_clicked()
       strcpy(articleEnCours.intitule,strtok(NULL,"#"));
 
 
-      ptr = strtok(NULL,"#"); // prix
-
-      articleEnCours.prix= atof(ptr);
-
       ptr = strtok(NULL,"#"); // stock
 
       articleEnCours.stock = atoi(ptr);
+
+      ptr = strtok(NULL,"#"); // prix
+
+      articleEnCours.prix= atof(ptr);
 
 
       strcpy(articleEnCours.image,strtok(NULL,"#"));
@@ -488,7 +489,12 @@ void WindowClient::on_pushButtonAcheter_clicked()
   char requete[200],reponse[200];
 
   // ***** Construction de la requete *********************
-
+  if(getQuantite() == 0)
+  {
+    QMessageBox::information(this,";)","Vous navez pas specifiez une quantité .\n");
+  }
+  else
+  {
     sprintf(requete,"ACHAT#%d#%d",articleEnCours.id,getQuantite());
     // ***** Envoi requete + réception réponse **************
     Echange(requete,reponse);
@@ -512,27 +518,35 @@ void WindowClient::on_pushButtonAcheter_clicked()
 
 
 
+
+
+      ptr = strtok(NULL,"#"); // prix
+      char *nom = nullptr;
+
+      strcpy(nom,ptr);
+
+      remplacerPointParVirgule(nom); 
+      articleEnCours.prix= atof(nom);
+
+
+
       ptr = strtok(NULL,"#"); // statut = Quantite ou 0
 
       articleEnCours.stock = atoi(ptr);
 
 
-      ptr = strtok(NULL,"#"); // prix
 
-      articleEnCours.prix= atof(ptr);
-
-      
-
-
-      if(articleEnCours.stock > 0)
+      if(articleEnCours.stock != 0)
       {
         w->videTablePanier();
-        totalCaddie = 0;
+        totalCaddie = 0; 
         w->ajouteArticleTablePanier(articleEnCours.intitule,articleEnCours.stock,articleEnCours.prix);
 
         totalCaddie += articleEnCours.stock * articleEnCours.prix;
 
         w->setTotal(totalCaddie);
+
+        CONSULTRAPIDE();
 
         QMessageBox::information(this,";)","Bien ajouter au panier .\n");
       }
@@ -540,11 +554,9 @@ void WindowClient::on_pushButtonAcheter_clicked()
       {
         QMessageBox::information(this,";)","Pas assez de stock  .\n");
       }
-
-
-      
-
     }
+  }
+   
  
 }
 
@@ -598,7 +610,7 @@ void Echange(char* requete, char* reponse)
   reponse[nbLus] = 0;
 }
 
-void CONSULTLOGIN()
+void CONSULTRAPIDE()
 {
   char requete[200],reponse[200];
 
@@ -653,3 +665,15 @@ void CONSULTLOGIN()
 
   
 
+void remplacerPointParVirgule(char *chaine) 
+{
+    for (size_t i = 0; i < strlen(chaine); i++) 
+      {
+        if (chaine[i] == '.') 
+        {
+            chaine[i] = ',';
+        }
+      }
+      printf("\n%f\n ",atof(chaine));
+
+}

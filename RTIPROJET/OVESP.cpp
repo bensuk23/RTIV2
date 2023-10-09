@@ -6,6 +6,7 @@
 #include <mysql/mysql.h>
 #include <pthread.h>
 
+
 #include "OVESP.h"
 
 //***** Etat du protocole : liste des clients loggés ****************
@@ -16,6 +17,7 @@ int nbClients = 0;
 int estPresent(int socket);
 void ajoute(int socket);
 void retire(int socket);
+
 MYSQL* connexion;
 char requete[256];
 ARTICLE articles[10];
@@ -151,7 +153,7 @@ bool OVESP(char* requete, char* reponse,int socket)
 		articleEnCoursC = OVESP_ACHAT(id,quantite);
 
 
-		if(articleEnCoursC.id == 0)
+		if(articleEnCoursC.stock == 0)
 		{
 
 			sprintf(reponse,"ACHAT#-1");
@@ -159,7 +161,7 @@ bool OVESP(char* requete, char* reponse,int socket)
 		}
 		else
 		{
-				sprintf(reponse,"ACHAT#%d#%d#%f",articleEnCoursC.id,articleEnCoursC.stock,articleEnCoursC.prix);
+			sprintf(reponse,"ACHAT#%d#%d#%f",articleEnCoursC.id,articleEnCoursC.stock,articleEnCoursC.prix);
 		}
 
 		pthread_mutex_unlock(&mutexBD);
@@ -313,7 +315,7 @@ ARTICLE OVESP_ACHAT(const char* id, const char* quantite)
 	// Acces BD
 	ARTICLE articleEnCours;
               
-          sprintf(requete,"select * from articles where id=%d;",id);
+          sprintf(requete,"select * from articles where id=%d;",atoi(id));
 
           if (mysql_query(connexion,requete) != 0)
           {
@@ -340,35 +342,34 @@ ARTICLE OVESP_ACHAT(const char* id, const char* quantite)
           {
 
 
-          articleEnCours.id = atoi(ligneA[0]);
-          strcpy(articleEnCours.intitule , ligneA[1]);
+	          articleEnCours.id = atoi(ligneA[0]);
+	          strcpy(articleEnCours.intitule , ligneA[1]);
 
 
-          if(atoi(ligneA[3]) < atoi(quantite))
-          {
+	          if(atoi(ligneA[3]) < atoi(quantite))
+	          {
+	            articleEnCours.stock = 0;
+	            printf("test réussie.\n");
+	          }
+	          else
+	          {
+	            
+	            articleEnCours.stock = atoi(quantite);
+	            sprintf(requete,"update articles set stock = stock - %s where id=%d;",quantite,articleEnCours.id);
 
-            articleEnCours.stock = 0;
- 
+	            if (mysql_query(connexion,requete) != 0)
+	            {
+	              fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
 
-          }
-          else
-          {
-            
-            articleEnCours.stock = atoi(quantite);
-            sprintf(requete,"update articles set stock = stock - %s where id=%d;",quantite,articleEnCours.id);
+	              exit(1);
+	            }
+	            printf("Requete UPDATE réussie.\n");
+	          }
+	      
 
-            if (mysql_query(connexion,requete) != 0)
-            {
-              fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+			articleEnCours.prix = atof(ligneA[2]);
 
-              exit(1);
-            }
-            printf("Requete UPDATE réussie.\n");
-          }
-      
-          articleEnCours.prix = atof(ligneA[2]);
 
-          
 
           }
 
@@ -420,3 +421,4 @@ void OVESP_Close()
 	close(clients[i]);
 	pthread_mutex_unlock(&mutexClients);
 }
+
