@@ -17,12 +17,17 @@ char * adresseIP = "192.168.161.161";
 int port = 50000;
 float totalCaddie = 0.0;
 
+ARTICLE articles[10];
+
+int nbArticles = 0;
+
 
 
 #define REPERTOIRE_IMAGES "images/"
-void CONSULTRAPIDE();
+void CONSULTRAPIDE(int id);
 void Echange(char* requete, char* reponse);
 void remplacerPointParVirgule(char *chaine);
+
 
 WindowClient::WindowClient(QWidget *parent) : QMainWindow(parent), ui(new Ui::WindowClient)
 {
@@ -289,7 +294,15 @@ void WindowClient::dialogueErreur(const char* titre,const char* message)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void WindowClient::closeEvent(QCloseEvent *event)
 {
+  char requete[200],reponse[200];
+  sprintf(requete,"CANCELALL");
 
+  Echange(requete,reponse);
+
+  // Mise à jour du caddie
+  videTablePanier();
+  totalCaddie = 0.0;
+  setTotal(-1.0);
   exit(0);
 }
 
@@ -305,12 +318,12 @@ void WindowClient::on_pushButtonLogin_clicked()
   // ***** Construction de la requete *********************
   if(isNouveauClientChecked())
   {
-    printf("clienttest1 ");
+
     strcpy(LOGOUPASLOG,"NC");
   }
   else
   {
-    printf("clienttest2 ");
+
     
     strcpy(LOGOUPASLOG,"PNC");
   }
@@ -320,7 +333,7 @@ void WindowClient::on_pushButtonLogin_clicked()
   // ***** Envoi requete + réception réponse **************
 
   Echange(requete,reponse);
-  printf("clienttest3 ");
+
 
 
   // ***** Parsing de la réponse **************************
@@ -334,9 +347,9 @@ void WindowClient::on_pushButtonLogin_clicked()
   if (strcmp(ptr,"ok") == 0) 
   {
     QMessageBox::information(this,";)","Login OK.\n");
-    printf("clienttest1 ");
+
     loginOK();
-    CONSULTRAPIDE();
+    CONSULTRAPIDE(1);
   }
 
   if (strcmp(ptr,"ko") == 0) 
@@ -363,6 +376,37 @@ void WindowClient::on_pushButtonLogout_clicked()
   Echange(requete,reponse);
   // ***** Parsing de la réponse **************************
   QMessageBox::information(this,";)","Vous etes bien deconnecter");
+
+
+
+    sprintf(requete,"CANCELALL");
+
+    Echange(requete,reponse);
+
+    // Mise à jour du caddie
+    videTablePanier();
+    totalCaddie = 0.0;
+    setTotal(-1.0);
+
+    // ***** Parsing de la réponse **************************
+
+
+
+
+    char *ptr = strtok(reponse,"#"); // entête = CANCEL (normalement...)
+
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+    if (strcmp(ptr,"OUIALL") == 0) 
+    {
+      for(int i = 0;i<nbArticles;i++)
+        {
+          articles[i] = {0};
+        }
+        nbArticles = 0;
+
+      QMessageBox::information(this,";)","les articles ont bien ete retirees.\n");
+    } 
 
   logoutOK();
   // pas vraiment utile...
@@ -407,6 +451,9 @@ void WindowClient::on_pushButtonSuivant_clicked()
       articleEnCours.stock = atoi(ptr);
 
       ptr = strtok(NULL,"#"); // prix
+      remplacerPointParVirgule(ptr);
+
+
 
       articleEnCours.prix= atof(ptr);
 
@@ -465,6 +512,11 @@ void WindowClient::on_pushButtonPrecedent_clicked()
       articleEnCours.stock = atoi(ptr);
 
       ptr = strtok(NULL,"#"); // prix
+      
+      remplacerPointParVirgule(ptr);
+
+
+ 
 
       articleEnCours.prix= atof(ptr);
 
@@ -489,73 +541,95 @@ void WindowClient::on_pushButtonAcheter_clicked()
   char requete[200],reponse[200];
 
   // ***** Construction de la requete *********************
-  if(getQuantite() == 0)
+
+  if(nbArticles < 10)
   {
-    QMessageBox::information(this,";)","Vous navez pas specifiez une quantité .\n");
-  }
-  else
-  {
-    sprintf(requete,"ACHAT#%d#%d",articleEnCours.id,getQuantite());
-    // ***** Envoi requete + réception réponse **************
-    Echange(requete,reponse);
-
-
-      // ***** Parsing de la réponse **************************
-
-
-    char *ptr = strtok(reponse,"#"); // entête = ACHAT (normalement...)
-
-    ptr = strtok(NULL,"#"); // statut = ID ou −1
-
-    if (strcmp(ptr,"-1") == 0) 
+    if(getQuantite() == 0)
     {
-      QMessageBox::information(this,";)","Erreur article non trouvé .\n");
-
-    }  
+      QMessageBox::information(this,";)","Vous navez pas specifiez une quantité .\n");
+    }
     else
     {
-      articleEnCours.id =atoi(ptr); 
+      sprintf(requete,"ACHAT#%d#%d",articleEnCours.id,getQuantite());
+      
+      // ***** Envoi requete + réception réponse **************
+      Echange(requete,reponse);
 
 
+        // ***** Parsing de la réponse **************************
 
 
+      char *ptr = strtok(reponse,"#"); // entête = ACHAT (normalement...)
 
-      ptr = strtok(NULL,"#"); // prix
-      char *nom = nullptr;
+      ptr = strtok(NULL,"#"); // statut = ID ou −1
 
-      strcpy(nom,ptr);
-
-      remplacerPointParVirgule(nom); 
-      articleEnCours.prix= atof(nom);
-
-
-
-      ptr = strtok(NULL,"#"); // statut = Quantite ou 0
-
-      articleEnCours.stock = atoi(ptr);
-
-
-
-      if(articleEnCours.stock != 0)
+      if (strcmp(ptr,"-1") == 0) 
       {
-        w->videTablePanier();
-        totalCaddie = 0; 
-        w->ajouteArticleTablePanier(articleEnCours.intitule,articleEnCours.stock,articleEnCours.prix);
+        QMessageBox::information(this,";)","Erreur article non trouvé .\n");
 
-        totalCaddie += articleEnCours.stock * articleEnCours.prix;
-
-        w->setTotal(totalCaddie);
-
-        CONSULTRAPIDE();
-
-        QMessageBox::information(this,";)","Bien ajouter au panier .\n");
-      }
+      }  
       else
       {
-        QMessageBox::information(this,";)","Pas assez de stock  .\n");
+
+
+        ptr = strtok(NULL,"#"); // statut = Quantite ou 0
+        int stock =0;
+        stock  = atoi(ptr);
+
+
+
+        if(stock  != 0)
+        {
+          w->videTablePanier();
+          totalCaddie = 0; 
+          
+          articles[nbArticles].id = articleEnCours.id;
+          strcpy(articles[nbArticles].intitule , articleEnCours.intitule);
+          articles[nbArticles].stock = stock;
+          articles[nbArticles].prix = articleEnCours.prix;
+          nbArticles ++;
+
+          for(int i = 0;i<nbArticles;i++)
+          {
+
+            w->ajouteArticleTablePanier(articles[i].intitule,articles[i].prix,articles[i].stock);
+
+            totalCaddie += articles[i].stock * articles[i].prix;
+
+
+
+          }
+
+
+          w->setTotal(totalCaddie);
+
+          CONSULTRAPIDE(articleEnCours.id);
+
+          QMessageBox::information(this,";)","Bien ajouter au panier .\n");
+        }
+        else
+        {
+          QMessageBox::information(this,";)","Pas assez de stock  .\n");
+        }
+
+        
+
+
       }
     }
   }
+  else
+  {
+    QMessageBox::information(this,";)","tROP D'ARTICLE DANS LE PANIER   .\n");
+  }
+
+
+
+  for (int i = 0; i < nbArticles; ++i) {
+        printf("Article %d:\n", i + 1);
+        printArticle(&articles[i]);
+    }
+  
    
  
 }
@@ -563,19 +637,130 @@ void WindowClient::on_pushButtonAcheter_clicked()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void WindowClient::on_pushButtonSupprimer_clicked()
 {
+    int IAS;
+    char requete[200],reponse[200];
 
+    IAS = getIndiceArticleSelectionne();
+
+    
+    sprintf(requete,"CANCEL#%d",IAS);
+
+    Echange(requete,reponse);
+
+    // Mise à jour du caddie
+    videTablePanier();
+    totalCaddie = 0.0;
+    setTotal(-1.0);
+
+    // ***** Parsing de la réponse **************************
+
+
+    char *ptr = strtok(reponse,"#"); // entête = CANCEL (normalement...)
+
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+    if (strcmp(ptr,"OUI") == 0) 
+    {
+      for(int i = IAS; i < nbArticles; i++)
+      {
+       articles[i] = articles[i+1];
+      }
+      articles[nbArticles]={0};
+      nbArticles--;
+
+      for(int i = 0;i<nbArticles;i++)
+          {
+
+            w->ajouteArticleTablePanier(articles[i].intitule,articles[i].prix,articles[i].stock);
+
+            totalCaddie += articles[i].stock * articles[i].prix;
+
+
+
+          }
+      QMessageBox::information(this,";)","L'article a bien ete retirer.\n");
+
+    } 
+    CONSULTRAPIDE(articleEnCours.id);
+    /*else if (strcmp(ptr,"NON") == 0) 
+    {
+      QMessageBox::information(this,";)","L'article na pas ete retirer.\n");
+    } */
 }
+
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void WindowClient::on_pushButtonViderPanier_clicked()
 {
+  char requete[200],reponse[200];
 
+    sprintf(requete,"CANCELALL");
+
+    Echange(requete,reponse);
+
+    // Mise à jour du caddie
+    videTablePanier();
+    totalCaddie = 0.0;
+    setTotal(-1.0);
+
+    // ***** Parsing de la réponse **************************
+
+
+
+
+    char *ptr = strtok(reponse,"#"); // entête = CANCEL (normalement...)
+
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+    if (strcmp(ptr,"OUIALL") == 0) 
+    {
+      for(int i = 0;i<nbArticles;i++)
+        {
+          articles[i] = {0};
+        }
+        nbArticles = 0;
+
+      QMessageBox::information(this,";)","les articles ont bien ete retirees.\n");
+    } 
+    CONSULTRAPIDE(articleEnCours.id);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void WindowClient::on_pushButtonPayer_clicked()
 {
+  /*char requete[200],reponse[200];
 
+    sprintf(requete,"CONFIRMER");
+
+    Echange(requete,reponse);
+
+    // Mise à jour du caddie
+    videTablePanier();
+    totalCaddie = 0.0;
+    setTotal(-1.0);
+
+    // ***** Parsing de la réponse **************************
+
+
+
+
+    char *ptr = strtok(reponse,"#"); // entête = CANCEL (normalement...)
+
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
+
+    if (strcmp(ptr,"CONFIRMERALL") == 0) 
+    {
+      for(int i = 0;i<nbArticles;i++)
+        {
+          articles[i] = {0};
+        }
+        nbArticles = 0;
+
+      QMessageBox::information(this,";)","les articles ont bien ete retirees.\n");
+    } 
+    CONSULTRAPIDE(articleEnCours.id);*/
 }
 
 
@@ -610,13 +795,13 @@ void Echange(char* requete, char* reponse)
   reponse[nbLus] = 0;
 }
 
-void CONSULTRAPIDE()
+void CONSULTRAPIDE(int id)
 {
   char requete[200],reponse[200];
 
   // ***** Construction de la requete *********************
 
-  sprintf(requete,"CONSULT#1");
+  sprintf(requete,"CONSULT#%d",id);
   // ***** Envoi requete + réception réponse **************
 
   Echange(requete,reponse);
@@ -625,37 +810,31 @@ void CONSULTRAPIDE()
     // ***** Parsing de la réponse **************************
 
 
-  char *ptr = strtok(reponse,"#"); // entête = CONSULT (normalement...)
-  printf("TEST 1Adresse IP distante du client : \n");
+    char *ptr = strtok(reponse,"#"); // entête = CONSULT (normalement...)
 
-  ptr = strtok(NULL,"#"); // statut = ID ou −1
+    ptr = strtok(NULL,"#"); // statut = ID ou −1
 
 
     articleEnCours.id =atoi(ptr);
-    printf("TEST 2Adresse IP distante du client : \n");
 
 
     strcpy(articleEnCours.intitule,strtok(NULL,"#"));
 
-    printf("TEST 3Adresse IP distante du client : \n");
     
-
     ptr = strtok(NULL,"#"); // stock
 
     articleEnCours.stock = atoi(ptr);
-    printf("TEST 4Adresse IP distante du client : \n");
+
 
     ptr = strtok(NULL,"#"); // prix
 
-    articleEnCours.prix= 10.0;
-    printf("TEST 5Adresse IP distante du client : \n");
+    remplacerPointParVirgule(ptr);
 
 
+    articleEnCours.prix= atof(ptr);
 
-    printf("TEST 6Adresse IP distante du client : \n");
     strcpy(articleEnCours.image,strtok(NULL,"#"));
-    printf("TEST 7Adresse IP distante du client : \n");
-    printf("\n\n\n\n\n\n1:%d 2:%s 3:%f 4:%d 5:%s\n\n\n\n\n\n",articleEnCours.id,articleEnCours.intitule,articleEnCours.prix,articleEnCours.stock,articleEnCours.image);
+   
    
 
     w->setArticle(articleEnCours.intitule,articleEnCours.prix,articleEnCours.stock,articleEnCours.image);
@@ -677,3 +856,4 @@ void remplacerPointParVirgule(char *chaine)
       printf("\n%f\n ",atof(chaine));
 
 }
+

@@ -20,8 +20,7 @@ void retire(int socket);
 
 MYSQL* connexion;
 char requete[256];
-ARTICLE articles[10];
-int nbArticles = 0;
+
 
 
 pthread_mutex_t mutexClients = PTHREAD_MUTEX_INITIALIZER;
@@ -29,7 +28,7 @@ pthread_mutex_t mutexClients = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutexBD = PTHREAD_MUTEX_INITIALIZER;
 
 //***** Parsing de la requete et creation de la reponse *************
-bool OVESP(char* requete, char* reponse,int socket)
+bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE articles[])
 {
 
 	pthread_mutex_lock(&mutexBD);
@@ -129,7 +128,6 @@ bool OVESP(char* requete, char* reponse,int socket)
 		}
 		else
 		{
-
 			sprintf(reponse,"CONSULT#%d#%s#%d#%f#%s",articleEnCoursC.id,articleEnCoursC.intitule,articleEnCoursC.stock,articleEnCoursC.prix,articleEnCoursC.image);
 		}
 
@@ -153,7 +151,7 @@ bool OVESP(char* requete, char* reponse,int socket)
 		articleEnCoursC = OVESP_ACHAT(id,quantite);
 
 
-		if(articleEnCoursC.stock == 0)
+		if(articleEnCoursC.id == 0)
 		{
 
 			sprintf(reponse,"ACHAT#-1");
@@ -161,13 +159,97 @@ bool OVESP(char* requete, char* reponse,int socket)
 		}
 		else
 		{
-			sprintf(reponse,"ACHAT#%d#%d#%f",articleEnCoursC.id,articleEnCoursC.stock,articleEnCoursC.prix);
+
+			
+
+			articles[* nbArticles].id = articleEnCoursC.id;
+			strcpy(articles[* nbArticles].intitule , articleEnCoursC.intitule);
+			articles[* nbArticles].stock = articleEnCoursC.stock;
+			articles[* nbArticles].prix = articleEnCoursC.prix;
+			(*nbArticles)++;
+
+			sprintf(reponse,"ACHAT#%d#%d",articleEnCoursC.id,articleEnCoursC.stock);
+
+			
 		}
+		
 
 		pthread_mutex_unlock(&mutexBD);
 
 
 	}
+
+	if (strcmp(ptr,"CANCEL") == 0)
+	{
+		strcpy(id,strtok(NULL,"#"));
+		char stuck[20]; // Make sure this is large enough to hold the resulting string
+		char idi[20]; 
+		// Using sprintf to convert integer to string
+
+		printf("testtttt avant ;%d",*nbArticles);
+		sprintf(idi, "%d", articles[atoi(id)].id);
+		sprintf(stuck, "%d", articles[atoi(id)].stock);
+
+
+		OVESP_CANCEL(idi,stuck);
+
+
+		for(int i = atoi(id); i < (*nbArticles); i++)
+        {
+         articles[i] = articles[i+1];
+        }
+
+        articles[*nbArticles]={0};
+
+        if((*nbArticles-1) >= 0)
+        {
+          (*nbArticles)--;
+        }
+
+        printf("testtttt apres ;%d",*nbArticles);
+        
+
+		sprintf(reponse,"CANCEL#OUI");
+		pthread_mutex_unlock(&mutexBD);
+
+
+	}
+
+	if (strcmp(ptr,"CANCELALL") == 0)
+	{
+		char stuck[20]; 
+		char id[20]; 
+		printf("TEST CANCEL:\n");
+	      	
+
+	
+		for(int i = 0;i<*nbArticles;i++)
+	      {
+	      	printf("TEST CANCEL2:\n");
+	      	sprintf(id, "%d", articles[i].id);
+	      	printf("%s",id);
+	      	sprintf(stuck, "%d", articles[i].stock);
+	      	printf("%s",stuck);
+
+	        OVESP_CANCEL(id,stuck);
+	        articles[i] = {0};
+
+	      }
+	      *nbArticles =0;
+		      sprintf(reponse,"CANCEL#OUIALL");
+	      pthread_mutex_unlock(&mutexBD);
+	}
+	/*if (strcmp(ptr,"CONFIRMER") == 0)
+	{
+		OVESP_CONFIRMER();
+	}*/
+
+	for (int i = 0; i < *nbArticles; i++) 
+		{
+	        printf("Article %d:\n", i + 1);
+	        printArticle(&articles[i]);
+    	}	
+
 
 	return true;
 }
@@ -379,6 +461,23 @@ ARTICLE OVESP_ACHAT(const char* id, const char* quantite)
 
 }
 
+void OVESP_CANCEL(const char* id,const char* stuck)
+{
+	printf("Requete UPDATE réussie. %s %s\n",stuck,id);
+	sprintf(requete,"update articles set stock = stock + %s where id=%s;",stuck,id);
+
+	if (mysql_query(connexion,requete) != 0)
+	{
+	  fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+	  exit(1);
+	}
+
+	printf("Requete UPDATE réussie.\n");
+
+}
+
+
+
 
 int estPresent(int socket)
 {
@@ -422,3 +521,12 @@ void OVESP_Close()
 	pthread_mutex_unlock(&mutexClients);
 }
 
+void printArticle(const ARTICLE *article) 
+{
+    printf("ID: %d\n", article->id);
+    printf("Intitule: %s\n", article->intitule);
+    printf("Prix: %.2f\n", article->prix);
+    printf("Stock: %d\n", article->stock);
+    printf("Image: %s\n", article->image);
+    printf("\n");
+}

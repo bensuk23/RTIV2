@@ -154,6 +154,8 @@ void HandlerSIGINT(int s)
 
 void TraitementConnexion(int sService)
 {
+	ARTICLE tabarticles[10];
+	int nbArticles = 0;
 	char requete[200], reponse[200];
 	int nbLus, nbEcrits;
 	bool onContinue = true;
@@ -186,7 +188,8 @@ void TraitementConnexion(int sService)
 
 		// ***** Traitement de la requete ***********
 
-		onContinue = OVESP(requete,reponse,sService);
+		onContinue = OVESP(requete,reponse,sService,&nbArticles,tabarticles);
+
 
 		// ***** Envoi de la reponse ****************
 
