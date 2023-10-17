@@ -98,7 +98,7 @@ int Accept(int sEcoute,char *ipClient)
         close(sService);
         exit(EXIT_FAILURE);
     }
-    ipClient = host;
+    strcpy(ipClient , host);
 
 
     printf("Adresse IP distante du client : %s\n", ipClient);

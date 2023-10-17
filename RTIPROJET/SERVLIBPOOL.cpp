@@ -14,7 +14,8 @@ void* FctThreadClient(void* p);
 int sEcoute;
 
 // Gestion du pool de threads
-#define NB_THREADS_POOL 2
+
+#define MAX_LINE_LENGTH 100
 #define TAILLE_FILE_ATTENTE 20
 int socketsAcceptees[TAILLE_FILE_ATTENTE];
 int indiceEcriture=0, indiceLecture=0;
@@ -27,12 +28,45 @@ pthread_cond_t condSocketsAcceptees;
 int main(int argc,char* argv[])
 {
 
-	if (argc != 2)
-	{
-		printf("Erreur...\n");
-		printf("USAGE : Serveur portServeur\n");
-		exit(1);
-	}
+
+
+	FILE *configFile = fopen("config.txt", "r");
+    if (configFile == NULL) {
+        perror("Erreur lors de l'ouverture du fichier de configuration");
+        return 1;
+    }
+
+    int threadsPoolSize = -1;
+    int portAchat = -1;
+    char line[MAX_LINE_LENGTH];
+
+    // Lire le fichier ligne par ligne
+    while (fgets(line, sizeof(line), configFile) != NULL) {
+        // Ignorer les lignes commentées commençant par #
+        if (line[0] == '#') {
+            continue;
+        }
+
+        // Utiliser sscanf pour extraire les valeurs des paramètres
+        if (sscanf(line, "ThreadsPoolSize = %d", &threadsPoolSize) == 1) {
+            // La valeur de ThreadsPoolSize a été lue avec succès
+        } else if (sscanf(line, "PORT_ACHAT = %d", &portAchat) == 1) {
+            // La valeur de PORT_ACHAT a été lue avec succès
+        }
+    }
+
+    // Vérifier si les valeurs ont été correctement lues
+    if (threadsPoolSize == -1 || portAchat == -1) 
+    {
+      fprintf(stderr, "Erreur lors de la lecture des valeurs du fichier de configuration.\n");
+    } 
+    else 
+    {
+        printf("ThreadsPoolSize = %d\n", threadsPoolSize);
+        printf("PORT_ACHAT = %d\n", portAchat);
+    }
+
+    fclose(configFile);
 
 	// Initialisation socketsAcceptees
 
@@ -57,7 +91,7 @@ int main(int argc,char* argv[])
 
 	// Creation de la socket d'écoute
 
-	if ((sEcoute = ServerSocket(atoi(argv[1]))) == -1)
+	if ((sEcoute = ServerSocket(portAchat)) == -1)
 	{
 		perror("Erreur de ServeurSocket");
 		exit(1);
@@ -71,7 +105,7 @@ int main(int argc,char* argv[])
 	printf("Création du pool de threads.\n");
 	pthread_t th;
 
-	for (int i=0 ; i<NB_THREADS_POOL ; i++)
+	for (int i=0 ; i<threadsPoolSize ; i++)
 	pthread_create(&th,NULL,FctThreadClient,NULL);
 
 	// Mise en boucle du serveur

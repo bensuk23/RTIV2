@@ -1,0 +1,3 @@
+# Contenu du fichier de configuration (config.txt)
+ThreadsPoolSize = 5
+PORT_ACHAT = 50000

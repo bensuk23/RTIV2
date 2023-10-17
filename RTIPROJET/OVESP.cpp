@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 #include <mysql.h>
 #include <mysql/mysql.h>
 #include <pthread.h>
@@ -236,13 +237,105 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 
 	      }
 	      *nbArticles =0;
-		      sprintf(reponse,"CANCEL#OUIALL");
+		     sprintf(reponse,"CANCEL#OUIALL");
 	      pthread_mutex_unlock(&mutexBD);
 	}
-	/*if (strcmp(ptr,"CONFIRMER") == 0)
+	if (strcmp(ptr,"CONFIRMER") == 0)
 	{
-		OVESP_CONFIRMER();
-	}*/
+		time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+		
+		char date_str[80];
+
+		double totalCaddieTEMP = 0.0;
+		strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
+
+		int idcli = estPresent(socket);
+		int idF = 0;
+
+		char requete[256];
+
+
+	  for (int i = 0; i < *nbArticles; i++) 
+	  {
+
+	  	totalCaddieTEMP += articles[i].stock * articles[i].prix;
+	  }	
+
+	  sprintf(requete,"insert into Facture values (NULL,%d,'%s',%lf,%d);",idcli,date_str,totalCaddieTEMP,0);
+
+	  if (mysql_query(connexion,requete) != 0)
+		{
+		  fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+		  exit(1);
+		}
+		printf("Requete INSERT réussie.\n");
+
+
+
+ 		sprintf(requete,"select * from Facture where date = '%s' AND idClient = %d AND montant = %.2lf;",date_str,idcli,totalCaddieTEMP);
+
+    if (mysql_query(connexion,requete) != 0)
+    {
+      fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+      exit(1);
+    }
+
+    printf("Requete SELECT réussie.\n");
+
+    // Affichage du Result Set
+    MYSQL_RES *ResultSetA;
+
+    if ((ResultSetA = mysql_store_result(connexion)) == NULL)
+    {
+    fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
+    exit(1);
+    }
+
+    MYSQL_ROW ligneA;
+
+    
+
+    while ((ligneA = mysql_fetch_row(ResultSetA)) != NULL)
+    {
+
+
+      idF = atoi(ligneA[0]);
+      
+      printf("Requete SELECT SELECTSELECTSELECT %d réussie.\n",idF);
+
+
+
+    }
+
+
+
+		for(int i = 0;i<*nbArticles;i++)
+    {
+
+    	sprintf(requete,"insert into Vente values (%d,%d,%d);",idF,articles[i].id,articles[i].stock);
+    	articles[i] = {0};
+
+    	if (mysql_query(connexion,requete) != 0)
+			{
+
+
+			  fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+			  exit(1);
+			}
+			printf("Requete INSERT TEST3réussie.\n");
+    }
+    *nbArticles =0;
+
+
+   
+
+    sprintf(reponse,"CONFIRMER#CONFIRMERALL");
+
+    pthread_mutex_unlock(&mutexBD);
+
+
+	}
 
 	for (int i = 0; i < *nbArticles; i++) 
 		{
@@ -475,7 +568,6 @@ void OVESP_CANCEL(const char* id,const char* stuck)
 	printf("Requete UPDATE réussie.\n");
 
 }
-
 
 
 

@@ -51,13 +51,15 @@ WindowClient::WindowClient(QWidget *parent) : QMainWindow(parent), ui(new Ui::Wi
     ui->pushButtonPayer->setText("Confirmer achat");
     setPublicite("!!! Bienvenue sur le Maraicher en ligne !!!");
 
+   
+
 
     if((sClient = ClientSocket(adresseIP,port) )== -1)
     {
       perror("Erreur de ClientSocket");
       exit(1);
     }
-    printf("Ca marche(%d)\n",sClient);
+
     
 
 
@@ -595,9 +597,6 @@ void WindowClient::on_pushButtonAcheter_clicked()
             w->ajouteArticleTablePanier(articles[i].intitule,articles[i].prix,articles[i].stock);
 
             totalCaddie += articles[i].stock * articles[i].prix;
-
-
-
           }
 
 
@@ -730,7 +729,7 @@ void WindowClient::on_pushButtonViderPanier_clicked()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void WindowClient::on_pushButtonPayer_clicked()
 {
-  /*char requete[200],reponse[200];
+  char requete[200],reponse[200];
 
     sprintf(requete,"CONFIRMER");
 
@@ -758,9 +757,9 @@ void WindowClient::on_pushButtonPayer_clicked()
         }
         nbArticles = 0;
 
-      QMessageBox::information(this,";)","les articles ont bien ete retirees.\n");
+      QMessageBox::information(this,";)","les articles ont bien ete acheter.\n");
     } 
-    CONSULTRAPIDE(articleEnCours.id);*/
+    CONSULTRAPIDE(articleEnCours.id);
 }
 
 
@@ -842,7 +841,6 @@ void CONSULTRAPIDE(int id)
 }
  
 
-  
 
 void remplacerPointParVirgule(char *chaine) 
 {

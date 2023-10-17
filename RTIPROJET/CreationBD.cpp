@@ -47,10 +47,10 @@ int main(int argc,char *argv[])
 
   // Creation d'une table UNIX_FINAL
   printf("Creation de la table articles...\n");
-  mysql_query(connexion,"drop table vente;");
+  mysql_query(connexion,"drop table Vente;");
   mysql_query(connexion,"drop table articles;"); // au cas ou elle existerait deja
   mysql_query(connexion,"create table articles (id INT(4) auto_increment primary key, intitule varchar(20),prix FLOAT(4),stock INT(4),image varchar(20));");
-  mysql_query(connexion,"CREATE TABLE Vente (idFacture INT,idArticle INT,quantite INT,PRIMARY KEY (idFacture, idArticle),FOREIGN KEY (idFacture) REFERENCES Facture(id),FOREIGN KEY (idArticle) REFERENCES articles(Id)");
+  mysql_query(connexion,"create table Vente (idFacture INT,idArticle INT,quantite INT);");
 
   // Ajout de tuples dans la table UNIX_FINAL
   printf("Ajout de 21 articles la table articles...\n");
