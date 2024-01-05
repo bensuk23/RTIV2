@@ -141,6 +141,8 @@ int Receive(int sSocket,char* data)
 	bool fini = false;
 	int nbLus, i = 0;
 	char lu1,lu2;
+
+
 	while(!fini)
 	{
 		if ((nbLus = read(sSocket,&lu1,1)) == -1)
@@ -188,6 +190,7 @@ int Send(int sSocket,char* data,int taille)
 
 
 	// Ecriture sur la socket
+
 	return write(sSocket,trame,taille+2)-2;
 
 }

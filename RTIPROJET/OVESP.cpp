@@ -105,7 +105,7 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 		retire(socket);
 		sprintf(reponse,"LOGOUT#ok");
 		pthread_mutex_unlock(&mutexBD);
-		return false;
+
 	}
 
 
@@ -139,7 +139,7 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 
 	if (strcmp(ptr,"ACHAT") == 0)
 	{
-
+		int test= 0;
 		printf("\t[THREAD %p] ACHAT\n",pthread_self());
 
 		strcpy(id,strtok(NULL,"#"));
@@ -160,14 +160,27 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 		}
 		else
 		{
+			for(int i =0;i<* nbArticles;i++)
+          {
+            if(atoi(id)== articles[i].id)
+            {
+              articles[i].stock += articleEnCoursC.stock;
+              test =1;
+              break;
+            }
+          }
+          if(test != 1)
+          {
+            articles[* nbArticles].id = articleEnCoursC.id;
+						strcpy(articles[* nbArticles].intitule , articleEnCoursC.intitule);
+						articles[* nbArticles].stock = articleEnCoursC.stock;
+						articles[* nbArticles].prix = articleEnCoursC.prix;
+						(*nbArticles)++;
+          }
 
 			
 
-			articles[* nbArticles].id = articleEnCoursC.id;
-			strcpy(articles[* nbArticles].intitule , articleEnCoursC.intitule);
-			articles[* nbArticles].stock = articleEnCoursC.stock;
-			articles[* nbArticles].prix = articleEnCoursC.prix;
-			(*nbArticles)++;
+			
 
 			sprintf(reponse,"ACHAT#%d#%d",articleEnCoursC.id,articleEnCoursC.stock);
 
@@ -207,7 +220,6 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
           (*nbArticles)--;
         }
 
-        printf("testtttt apres ;%d",*nbArticles);
         
 
 		sprintf(reponse,"CANCEL#OUI");
@@ -237,23 +249,64 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 
 	      }
 	      *nbArticles =0;
-		     sprintf(reponse,"CANCEL#OUIALL");
+	      sprintf(reponse,"PDR");
+	      printf("\n\ncnacel all realise;%d\n\n",*nbArticles);
 	      pthread_mutex_unlock(&mutexBD);
 	}
 	if (strcmp(ptr,"CONFIRMER") == 0)
 	{
+		char log [20];
+		char passW [20];
+		int idcli = 0;
+		char requete[256];
 		time_t t = time(NULL);
     struct tm *tm_info = localtime(&t);
 		
 		char date_str[80];
 
+		strcpy(log,strtok(NULL,"#"));
+		strcpy(passW,strtok(NULL,"#"));
+
 		double totalCaddieTEMP = 0.0;
 		strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
 
-		int idcli = estPresent(socket);
+
+		sprintf(requete,"select * from clients where login = '%s' AND mot_de_passe = '%s' ;",log,passW);
+
+    if (mysql_query(connexion,requete) != 0)
+    {
+      fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+      exit(1);
+    }
+
+    printf("Requete SELECT réussie.\n");
+
+    // Affichage du Result Set
+    MYSQL_RES *ResultSetA;
+
+    if ((ResultSetA = mysql_store_result(connexion)) == NULL)
+    {
+    fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
+    exit(1);
+    }
+
+    MYSQL_ROW ligneA;
+
+
+    while ((ligneA = mysql_fetch_row(ResultSetA)) != NULL)
+    {
+
+
+      idcli  = atoi(ligneA[0]);
+      
+
+
+    }
+
+
 		int idF = 0;
 
-		char requete[256];
+		
 
 
 	  for (int i = 0; i < *nbArticles; i++) 
@@ -283,8 +336,6 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 
     printf("Requete SELECT réussie.\n");
 
-    // Affichage du Result Set
-    MYSQL_RES *ResultSetA;
 
     if ((ResultSetA = mysql_store_result(connexion)) == NULL)
     {
@@ -292,7 +343,7 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
     exit(1);
     }
 
-    MYSQL_ROW ligneA;
+  
 
     
 
@@ -302,8 +353,6 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 
       idF = atoi(ligneA[0]);
       
-      printf("Requete SELECT SELECTSELECTSELECT %d réussie.\n",idF);
-
 
 
     }
@@ -341,7 +390,7 @@ bool OVESP(char* requete, char* reponse,int socket,int * nbArticles, ARTICLE art
 		{
 	        printf("Article %d:\n", i + 1);
 	        printArticle(&articles[i]);
-    	}	
+    }	
 
 
 	return true;

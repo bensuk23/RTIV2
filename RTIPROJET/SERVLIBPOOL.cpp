@@ -221,20 +221,25 @@ void TraitementConnexion(int sService)
 
 
 		// ***** Traitement de la requete ***********
+		printf("\t[THREAD %p]  onContinue = OVESP Attente requete...\n",pthread_self());
 
 		onContinue = OVESP(requete,reponse,sService,&nbArticles,tabarticles);
 
 
 		// ***** Envoi de la reponse ****************
-
-		if ((nbEcrits = Send(sService,reponse,strlen(reponse))) < 0)
+		if(strcmp(reponse , "PDR") != 0)
 		{
-			perror("Erreur de Send");
-			close(sService);
-			HandlerSIGINT(0);
+			if ((nbEcrits = Send(sService,reponse,strlen(reponse))) < 0)
+			{
+				perror("Erreur de Send");
+				close(sService);
+				HandlerSIGINT(0);
+			}
+			printf("\t[THREAD %p] Reponse envoyee = %s %d\n",pthread_self(),reponse,nbEcrits);
 		}
+		
 
-		printf("\t[THREAD %p] Reponse envoyee = %s %d\n",pthread_self(),reponse,nbEcrits);
+		
 
 		if (!onContinue)
 		{

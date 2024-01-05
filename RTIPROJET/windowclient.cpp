@@ -26,6 +26,7 @@ int nbArticles = 0;
 #define REPERTOIRE_IMAGES "images/"
 void CONSULTRAPIDE(int id);
 void Echange(char* requete, char* reponse);
+void EchangeNR(char* requete);
 void remplacerPointParVirgule(char *chaine);
 
 
@@ -383,32 +384,24 @@ void WindowClient::on_pushButtonLogout_clicked()
 
     sprintf(requete,"CANCELALL");
 
-    Echange(requete,reponse);
+    EchangeNR(requete);
 
     // Mise à jour du caddie
     videTablePanier();
     totalCaddie = 0.0;
     setTotal(-1.0);
 
+     for(int i = 0;i<nbArticles;i++)
+      {
+        articles[i] = {0};
+      }
+      nbArticles = 0;
+
+      QMessageBox::information(this,";)","les articles ont bien ete retirees.\n");
+
     // ***** Parsing de la réponse **************************
 
 
-
-
-    char *ptr = strtok(reponse,"#"); // entête = CANCEL (normalement...)
-
-    ptr = strtok(NULL,"#"); // statut = ID ou −1
-
-    if (strcmp(ptr,"OUIALL") == 0) 
-    {
-      for(int i = 0;i<nbArticles;i++)
-        {
-          articles[i] = {0};
-        }
-        nbArticles = 0;
-
-      QMessageBox::information(this,";)","les articles ont bien ete retirees.\n");
-    } 
 
   logoutOK();
   // pas vraiment utile...
@@ -541,6 +534,9 @@ void WindowClient::on_pushButtonPrecedent_clicked()
 void WindowClient::on_pushButtonAcheter_clicked()
 {
   char requete[200],reponse[200];
+  int idtemp;
+  int test =0; 
+  int stock =0;
 
   // ***** Construction de la requete *********************
 
@@ -572,10 +568,11 @@ void WindowClient::on_pushButtonAcheter_clicked()
       }  
       else
       {
-
+        
+        idtemp = atoi(ptr);
 
         ptr = strtok(NULL,"#"); // statut = Quantite ou 0
-        int stock =0;
+        
         stock  = atoi(ptr);
 
 
@@ -584,12 +581,28 @@ void WindowClient::on_pushButtonAcheter_clicked()
         {
           w->videTablePanier();
           totalCaddie = 0; 
+
+
+          for(int i =0;i<nbArticles;i++)
+          {
+            if(idtemp== articles[i].id)
+            {
+              articles[i].stock += stock;
+              test =1;
+              break;
+            }
+          }
+          if(test != 1)
+          {
+            articles[nbArticles].id = articleEnCours.id;
+            strcpy(articles[nbArticles].intitule , articleEnCours.intitule);
+            articles[nbArticles].stock = stock;
+            articles[nbArticles].prix = articleEnCours.prix;
+            nbArticles ++;
+          }
+                        
           
-          articles[nbArticles].id = articleEnCours.id;
-          strcpy(articles[nbArticles].intitule , articleEnCours.intitule);
-          articles[nbArticles].stock = stock;
-          articles[nbArticles].prix = articleEnCours.prix;
-          nbArticles ++;
+          
 
           for(int i = 0;i<nbArticles;i++)
           {
@@ -697,7 +710,7 @@ void WindowClient::on_pushButtonViderPanier_clicked()
 
     sprintf(requete,"CANCELALL");
 
-    Echange(requete,reponse);
+    EchangeNR(requete);
 
     // Mise à jour du caddie
     videTablePanier();
@@ -707,22 +720,15 @@ void WindowClient::on_pushButtonViderPanier_clicked()
     // ***** Parsing de la réponse **************************
 
 
-
-
-    char *ptr = strtok(reponse,"#"); // entête = CANCEL (normalement...)
-
-    ptr = strtok(NULL,"#"); // statut = ID ou −1
-
-    if (strcmp(ptr,"OUIALL") == 0) 
+    for(int i = 0;i<nbArticles;i++)
     {
-      for(int i = 0;i<nbArticles;i++)
-        {
-          articles[i] = {0};
-        }
-        nbArticles = 0;
+      articles[i] = {0};
+    }
+    nbArticles = 0;
 
       QMessageBox::information(this,";)","les articles ont bien ete retirees.\n");
-    } 
+
+  
     CONSULTRAPIDE(articleEnCours.id);
 }
 
@@ -731,7 +737,7 @@ void WindowClient::on_pushButtonPayer_clicked()
 {
   char requete[200],reponse[200];
 
-    sprintf(requete,"CONFIRMER");
+    sprintf(requete,"CONFIRMER#%s#%s",getNom(),getMotDePasse());
 
     Echange(requete,reponse);
 
@@ -792,6 +798,20 @@ void Echange(char* requete, char* reponse)
     exit(1);
   }
   reponse[nbLus] = 0;
+}
+
+void EchangeNR(char* requete)
+{
+  int nbEcrits;
+  // ***** Envoi de la requete ****************************
+
+  if ((nbEcrits = Send(sClient,requete,strlen(requete))) == -1)
+  {
+    perror("Erreur de Send");
+    close(sClient);
+    exit(1);
+  }
+
 }
 
 void CONSULTRAPIDE(int id)
